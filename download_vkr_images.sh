@@ -7,14 +7,13 @@ TKG_CONTENT_LIBRARY_ITEMS_URL="${BASE_TKG_CONTENT_LIBRARY_URI}/items.json"
 MAX_RETRIES="${MAX_RETRIES:-3}"
 RETRY_DELAY="${RETRY_DELAY:-2}"
 CONNECT_TIMEOUT="${CONNECT_TIMEOUT:-20}"
-OUTPUT_DIR="${OUTPUT_DIR:-.}"
-ITEMS_JSON="${ITEMS_JSON:-items.json}"
+OUTPUT_DIR="${OUTPUT_DIR:-${HOME}}"
+ITEMS_JSON="${ITEMS_JSON:-${TMPDIR:-/tmp}/vkr-items.json}"
 
 usage() {
     cat <<'EOF'
 Usage:
-  ./download_tkg_content.sh
-  OUTPUT_DIR=/path/to/downloads ./download_tkg_content.sh
+  ./download_vkr_images.sh
 
 Selection input after the OVA list is shown:
   1          Download one version
@@ -22,7 +21,26 @@ Selection input after the OVA list is shown:
   2-6        Download a range
   all        Download all listed versions
   q          Quit
+
+After selecting versions, the script shows the default download directory
+and lets you change it interactively before any image files are downloaded.
 EOF
+}
+
+parse_args() {
+    while [[ "$#" -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            *)
+                echo "[ERROR] Unknown argument: $1" >&2
+                usage >&2
+                exit 1
+                ;;
+        esac
+    done
 }
 
 require_command() {
@@ -147,6 +165,45 @@ print_image_entries() {
     echo "================================================================================"
 }
 
+select_download_directory() {
+    local answer
+    local custom_dir
+
+    echo ""
+    echo "Current download directory: ${OUTPUT_DIR}"
+
+    while true; do
+        read -r -p "Change download directory? [y/N]: " answer
+        answer="$(printf '%s' "${answer}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
+
+        case "${answer}" in
+            ""|n|no)
+                break
+                ;;
+            y|yes)
+                read -r -p "Enter download directory: " custom_dir
+                if [[ -z "${custom_dir}" ]]; then
+                    echo "[ERROR] Download directory cannot be empty." >&2
+                    continue
+                fi
+
+                OUTPUT_DIR="${custom_dir/#\~/${HOME}}"
+                break
+                ;;
+            *)
+                echo "[ERROR] Please enter y or n." >&2
+                ;;
+        esac
+    done
+
+    if ! mkdir -p "${OUTPUT_DIR}"; then
+        echo "[ERROR] Failed to create download directory: ${OUTPUT_DIR}" >&2
+        exit 1
+    fi
+
+    echo "Download directory: ${OUTPUT_DIR}"
+}
+
 expand_selection() {
     local raw_selection="$1"
     local max_index="$2"
@@ -246,14 +303,13 @@ download_selected_images() {
 }
 
 main() {
-    if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-        usage
-        exit 0
-    fi
+    parse_args "$@"
 
     require_command curl
     require_command jq
     require_command awk
+
+    echo "Metadata file: ${ITEMS_JSON}"
 
     refresh_metadata
     load_image_entries
@@ -284,6 +340,7 @@ main() {
     done
 
     mapfile -t SELECTED_INDEXES <<< "${selected_indexes}"
+    select_download_directory
     download_selected_images "${SELECTED_INDEXES[@]}"
 }
 
