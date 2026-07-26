@@ -135,13 +135,37 @@ human_size() {
     '
 }
 
+parse_image_name() {
+    local item_name="$1"
+    local os_name="unknown"
+    local os_version="unknown"
+    local image_version="unknown"
+
+    if [[ "${item_name}" =~ photon-([0-9]+) ]]; then
+        os_name="photon"
+        os_version="${BASH_REMATCH[1]}"
+    elif [[ "${item_name}" =~ ubuntu-([0-9]{2})([0-9]{2}) ]]; then
+        os_name="ubuntu"
+        os_version="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+    fi
+
+    if [[ "${item_name}" =~ -v([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+        image_version="v${BASH_REMATCH[1]}"
+    fi
+
+    printf "%s\t%s\t%s\n" "${os_name}" "${os_version}" "${image_version}"
+}
+
 print_image_entries() {
     echo ""
     echo "Available OVA/OVF image versions:"
-    echo "================================================================================"
+    echo "===================================================================================================================================="
+    printf "%-5s %-8s %-8s %-12s %-10s %-5s %s\n" \
+        "No." "OS" "OS Ver" "K8s/VKR" "Size" "Files" "Name"
+    echo "------------------------------------------------------------------------------------------------------------------------------------"
 
     local index=1
-    local entry item_name version created total_size file_count
+    local entry item_name version created total_size file_count parsed os_name os_version image_version
 
     for entry in "${IMAGE_ENTRIES[@]}"; do
         item_name="${entry%%$'\t'*}"
@@ -152,17 +176,27 @@ print_image_entries() {
         entry="${entry#*$'\t'}"
         total_size="${entry%%$'\t'*}"
         file_count="${entry#*$'\t'}"
+        parsed="$(parse_image_name "${item_name}")"
+        os_name="${parsed%%$'\t'*}"
+        parsed="${parsed#*$'\t'}"
+        os_version="${parsed%%$'\t'*}"
+        image_version="${parsed#*$'\t'}"
 
-        printf "%4d) %s\n" "${index}" "${item_name}"
-        printf "      version=%s  created=%s  files=%s  size=%s\n" \
-            "${version:-n/a}" \
-            "${created:-n/a}" \
+        printf "%4d) %-8s %-8s %-12s %-10s %-5s %s\n" \
+            "${index}" \
+            "${os_name}" \
+            "${os_version}" \
+            "${image_version}" \
+            "$(human_size "${total_size}")" \
             "${file_count}" \
-            "$(human_size "${total_size}")"
+            "${item_name}"
+        printf "      created=%s  content-library-version=%s\n" \
+            "${created:-n/a}" \
+            "${version:-n/a}"
         ((++index))
     done
 
-    echo "================================================================================"
+    echo "===================================================================================================================================="
 }
 
 select_download_directory() {
