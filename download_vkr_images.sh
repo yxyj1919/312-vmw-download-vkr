@@ -2,6 +2,7 @@
 set -euo pipefail
 
 BASE_TKG_CONTENT_LIBRARY_URI="https://wp-content.vmware.com/v2/latest"
+TKG_CONTENT_LIBRARY_LIB_URL="${BASE_TKG_CONTENT_LIBRARY_URI}/lib.json"
 TKG_CONTENT_LIBRARY_ITEMS_URL="${BASE_TKG_CONTENT_LIBRARY_URI}/items.json"
 
 MAX_RETRIES="${MAX_RETRIES:-3}"
@@ -92,6 +93,22 @@ download_file() {
 refresh_metadata() {
     echo -e "\033[36mDownloading ${ITEMS_JSON}\033[0m"
     download_file "${TKG_CONTENT_LIBRARY_ITEMS_URL}" "${ITEMS_JSON}"
+}
+
+save_metadata() {
+    local output_items_json="${OUTPUT_DIR}/items.json"
+    local output_lib_json="${OUTPUT_DIR}/lib.json"
+
+    echo ""
+    echo -e "\033[36mSaving Content Library metadata ...\033[0m"
+
+    if [[ "${ITEMS_JSON}" != "${output_items_json}" ]]; then
+        cp "${ITEMS_JSON}" "${output_items_json}"
+    fi
+    echo "  [SAVED] ${output_items_json}"
+
+    download_file "${TKG_CONTENT_LIBRARY_LIB_URL}" "${output_lib_json}"
+    echo "  [SAVED] ${output_lib_json}"
 }
 
 load_image_entries() {
@@ -375,6 +392,7 @@ main() {
 
     mapfile -t SELECTED_INDEXES <<< "${selected_indexes}"
     select_download_directory
+    save_metadata
     download_selected_images "${SELECTED_INDEXES[@]}"
 }
 
