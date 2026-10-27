@@ -305,7 +305,7 @@ download_selected_images() {
     local success_count=0
     local fail_count=0
     local skip_count=0
-    local selected_index entry item_name file_hrefs href local_path download_url
+    local selected_index entry item_name item_json_href file_hrefs href local_path download_url
 
     for selected_index in "${selected_indexes[@]}"; do
         entry="${IMAGE_ENTRIES[selected_index - 1]}"
@@ -313,6 +313,22 @@ download_selected_images() {
 
         echo ""
         echo -e "\033[36mProcessing: ${item_name}\033[0m"
+
+        item_json_href="${item_name}/item.json"
+        local_path="${OUTPUT_DIR}/${item_json_href}"
+        download_url="${BASE_TKG_CONTENT_LIBRARY_URI}/${item_json_href}"
+
+        if [[ -f "${local_path}" ]]; then
+            echo "  [SKIP] Already exists: ${local_path}"
+            ((++skip_count))
+        else
+            echo -e "  \033[33mDownloading ${item_json_href} ...\033[0m"
+            if download_file "${download_url}" "${local_path}"; then
+                ((++success_count))
+            else
+                ((++fail_count))
+            fi
+        fi
 
         mapfile -t file_hrefs < <(jq -r --arg name "${item_name}" '
             .items[]

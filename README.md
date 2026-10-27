@@ -31,4 +31,4 @@ q       # Quit
 
 The default download directory is the current user's home directory, such as `/Users/<user>` on macOS or `/home/<user>` on Linux. After you select the image versions, the script asks whether you want to change the directory.
 
-The script preserves the VMware Content Library directory structure and skips image files that already exist locally. The `lib.json` and `items.json` files in the root of the download directory are updated with the metadata used for the current run.
+The script preserves the VMware Content Library directory structure and skips files that already exist locally. It saves each selected image's `item.json` in the corresponding image directory. The `lib.json` and `items.json` files in the root of the download directory are updated with the metadata used for the current run.
